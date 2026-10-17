@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import mascot from '../assets/brand/kuruttina-v1.webp'
+import mascot from '../assets/brand/hero-figure-v1.webp'
 
 const vertex = `attribute vec2 position;
 varying vec2 uv;
@@ -60,7 +60,10 @@ void main(){
  wake*=smoothstep(.08,.25,depth)*exp(-local.y*13.)*smoothstep(.1,.3,radius)*(1.-smoothstep(.8,1.25,radius));
  float shadow=exp(-pow(local.x*3.2,2.)-local.y*30.);
  vec3 color=vec3(seaLight*(1.-shadow*.8)+wake*.065);
- color+=reflection.rgb*reflection.a*inside*fade;
+ vec3 refl=reflection.rgb;
+ float peak=max(refl.r,max(refl.g,refl.b));
+ refl=mix(vec3(.12),refl,smoothstep(0.,.35,peak));
+ color+=refl*reflection.a*inside*fade;
  float boundary=2.+sin(uv.x*44.+time*.8)*1.2+sin(uv.x*83.-time)*.6;
  float alpha=smoothstep(boundary-1.,boundary+5.,depth*resolution.y);
  gl_FragColor=vec4(color,alpha);

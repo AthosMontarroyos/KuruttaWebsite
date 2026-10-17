@@ -1,5 +1,5 @@
 import Ocean from './Ocean'
-import mascot from '../assets/brand/kuruttina-v1.webp'
+import mascot from '../assets/brand/hero-figure-v1.webp'
 import kanji from '../assets/brand/kanji-v1.svg'
 
 function Arrow({ down = false }: { down?: boolean }) {
@@ -24,7 +24,7 @@ export default function App() {
         <div className="stage">
           <div className="figure-scene">
             <img className="hero-kanji" src={kanji} alt="" aria-hidden="true" />
-            <img className="mascot" src={mascot} alt="Personagem de cabelos prateados, sentada de frente e segurando um coelho de pelúcia." fetchPriority="high" />
+            <img className="mascot" src={mascot} alt="Personagem de cabelos escuros, sentada, com uma espada apoiada no ombro." fetchPriority="high" />
           </div>
           <Ocean />
         </div>
