@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import mascot from '../assets/brand/hero-figure-v1.webp'
 
+export const WATER = { speed: .55, amplitude: .018, reflection: .78, fade: .9, resolution: 1, maxDpr: 1.5 }
+
 const vertex = `attribute vec2 position;
 varying vec2 uv;
 void main(){uv=position*.5+.5;gl_Position=vec4(position,0.,1.);}`
@@ -10,6 +12,8 @@ uniform float time;
 uniform vec2 resolution;
 uniform vec2 figure;
 uniform float contact;
+uniform float center;
+uniform vec4 tuning;
 uniform sampler2D subject;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
@@ -47,12 +51,12 @@ void main(){
  seaLight*=mix(.9,1.,smoothstep(0.,.15,depth));
  // Suppress distant specular bands; retain the foreground wave lighting.
  seaLight=mix(.014,seaLight,smoothstep(.06,.38,depth));
- vec2 displacement=slope*vec2(.024,.012)*(.12+depth*1.6+distant*.23);
- vec2 tex=vec2((uv.x-.5)*resolution.x/figure.x+.5,
+ vec2 displacement=(slope*.35+vec2(noise(world+time*.15)-.5,noise(world*.7-time*.1)-.5))*tuning.y*(.05+depth*2.);
+ vec2 tex=vec2((uv.x-center)*resolution.x/figure.x+.5,
    contact-depth*resolution.y/figure.y)+displacement;
  vec4 reflection=texture2D(subject,clamp(tex,0.,1.));
  float inside=step(0.,tex.x)*step(tex.x,1.)*step(0.,tex.y)*step(tex.y,1.);
- float fade=pow(1.-depth,2.1)*.38;
+ float fade=tuning.z*exp(-depth*2.2/tuning.w)*(1.-smoothstep(tuning.w*.65,tuning.w,depth));
  // Soft occlusion and spreading elliptical wakes anchor the seated figure.
  vec2 local=vec2((uv.x-.5)*resolution.x/figure.x,depth*resolution.y/figure.y);
  float radius=length(vec2(local.x,local.y*3.2));
@@ -65,7 +69,7 @@ void main(){
  refl=mix(vec3(.12),refl,smoothstep(0.,.35,peak));
  color+=refl*reflection.a*inside*fade;
  float boundary=2.+sin(uv.x*44.+time*.8)*1.2+sin(uv.x*83.-time)*.6;
- float alpha=smoothstep(boundary-1.,boundary+5.,depth*resolution.y);
+ float alpha=smoothstep(0.,18.,depth*resolution.y);
  gl_FragColor=vec4(color,alpha);
 }`
 
@@ -109,42 +113,26 @@ function webglRenderer(canvas: HTMLCanvasElement, image: HTMLImageElement): Rend
   const resolution = gl.getUniformLocation(program, 'resolution')
   const figure = gl.getUniformLocation(program, 'figure')
   const contact = gl.getUniformLocation(program, 'contact')
+  const center = gl.getUniformLocation(program, 'center')
+  gl.uniform4f(gl.getUniformLocation(program, 'tuning'), WATER.speed, WATER.amplitude, WATER.reflection, WATER.fade)
   return {
     draw: time => {
       const w = canvas.clientWidth, h = canvas.clientHeight
-      const ratio = Math.min(devicePixelRatio, w < 640 ? 1 : 1.25)
+      const ratio = Math.min(devicePixelRatio, WATER.maxDpr) * WATER.resolution
       if (canvas.width !== Math.round(w*ratio) || canvas.height !== Math.round(h*ratio)) {
         canvas.width = Math.round(w*ratio); canvas.height = Math.round(h*ratio)
       }
       const box = canvas.parentElement?.querySelector('.mascot')?.getBoundingClientRect()
       const surface = canvas.getBoundingClientRect()
       gl.viewport(0, 0, canvas.width, canvas.height)
-      gl.uniform1f(clock, time / 1000)
+      gl.uniform1f(clock, time / 1000 * WATER.speed)
       gl.uniform2f(resolution, w, h)
       gl.uniform2f(figure, box?.width || w*.6, box?.height || h*2)
       gl.uniform1f(contact, box ? (surface.top - box.top) / box.height : .9)
+      gl.uniform1f(center, box ? (box.left+box.width/2-surface.left)/w : .5)
       gl.drawArrays(gl.TRIANGLES, 0, 6)
     }, dispose,
   }
-}
-
-// Non-WebGL devices retain a water surface and a static reflected subject.
-function fallback(canvas: HTMLCanvasElement, image: HTMLImageElement): Renderer {
-  const ctx = canvas.getContext('2d')
-  return { draw: () => {
-    if (!ctx) return
-    const w = canvas.width = canvas.clientWidth, h = canvas.height = canvas.clientHeight
-    const figure = canvas.parentElement?.querySelector('.mascot')?.getBoundingClientRect()
-    const size = figure?.width || w*.6
-    const contact = figure ? (canvas.getBoundingClientRect().top - figure.top) / figure.height : .9
-    ctx.fillStyle = '#050505'; ctx.fillRect(0,0,w,h)
-    for(let y=0;y<h;y+=3){
-      const d=y/h;ctx.globalAlpha=.4*Math.pow(1-d,2)
-      ctx.drawImage(image,0,image.height*contact-y*image.width/size-3,image.width,4,(w-size)/2+Math.sin(y*.17)*d*7,y,size,3)
-    }
-    ctx.globalAlpha=1
-    for(let y=3;y<h;y+=6){ctx.strokeStyle=`rgba(180,180,180,${.01+y/h*.025})`;ctx.beginPath();ctx.moveTo(0,y);for(let x=0;x<=w;x+=12)ctx.lineTo(x,y+Math.sin(x*.02+y)*y/h*2);ctx.stroke()}
-  }, dispose: () => {} }
 }
 
 export default function Ocean() {
@@ -155,25 +143,34 @@ export default function Ocean() {
     if (!canvas) return
     const image = new Image()
     const motion = matchMedia('(prefers-reduced-motion: reduce)')
-    let renderer: Renderer | null = null, frame = 0, visible = true, last = 0, activeTime = 0, previous = 0, disposed = false
+    let renderer: Renderer | null = null, frame = 0, visible = true, activeTime = 0, previous = 0, disposed = false
     const tick = (now: number) => {
       if (disposed) return
-      if (visible && !document.hidden && now-last>33) {
+      if (visible && !document.hidden) {
         activeTime += previous ? Math.min(now-previous, 100) : 0
         previous=now
-        renderer?.draw(activeTime); last = now
+        renderer?.draw(activeTime)
       }
       frame=requestAnimationFrame(tick)
     }
     const start = () => {
       cancelAnimationFrame(frame); previous=0
+      const box = canvas.parentElement?.querySelector('.mascot')?.getBoundingClientRect()
+      const surface = canvas.getBoundingClientRect()
+      const fallback = canvas.previousElementSibling as HTMLElement | null
+      if (box && fallback) {
+        fallback.style.setProperty('--reflection-left', `${box.left-surface.left}px`)
+        fallback.style.setProperty('--reflection-top', `${surface.top-box.bottom}px`)
+        fallback.style.setProperty('--reflection-width', `${box.width}px`)
+        fallback.style.setProperty('--reflection-height', `${box.height}px`)
+      }
       renderer?.draw(motion.matches ? 0 : activeTime)
       if (!motion.matches && visible && !document.hidden) frame=requestAnimationFrame(tick)
     }
     const init = () => {
       if (disposed || !canvas) return
       renderer?.dispose()
-      renderer=useFallback ? fallback(canvas,image) : webglRenderer(canvas,image)
+      renderer=useFallback ? null : webglRenderer(canvas,image)
       if (!renderer) { setUseFallback(true); return }
       canvas.dataset.renderer=useFallback ? 'fallback' : 'webgl'
       start()
@@ -182,7 +179,7 @@ export default function Ocean() {
     canvas.addEventListener('webglcontextlost',lost)
     canvas.addEventListener('webglcontextrestored',init)
     image.onload=init;image.src=mascot
-    const resize=new ResizeObserver(()=>renderer?.draw(motion.matches?0:activeTime))
+    const resize=new ResizeObserver(start)
     resize.observe(canvas.parentElement!)
     const observer=new IntersectionObserver(([entry])=>{visible=entry.isIntersecting;start()})
     observer.observe(canvas.parentElement!)
@@ -195,5 +192,6 @@ export default function Ocean() {
       image.onload=null
     }
   }, [useFallback])
-  return <canvas key={useFallback ? '2d' : 'webgl'} ref={ref} className="ocean" aria-hidden="true" />
+  return <><div className={`ocean-fallback ${useFallback ? '' : 'hidden'}`} aria-hidden="true"><img src={mascot} alt="" /></div><canvas ref={ref} className="ocean" aria-hidden="true" /></>
 }
+

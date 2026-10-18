@@ -21,6 +21,9 @@ nav a:hover { color: #aaa; }
 .github-link { display: flex; }
 .hero { height: calc(100svh - 76px); min-height: 580px; position: relative; overflow: hidden; isolation: isolate; background: #000; }
 .stage { position: absolute; inset: 0; --water: 66%; }
+.stage::before { content: ''; position: absolute; inset: 12% 20% 24%; background: radial-gradient(ellipse, #ffffff12, transparent 65%); pointer-events: none; }
+.ocean-fallback { position: absolute; inset: calc(var(--water) - 12px) 0 0; overflow: hidden; background: #050505; mask-image: linear-gradient(transparent, black 18px, transparent 95%); }
+.ocean-fallback img { position: absolute; left: var(--reflection-left, 0px); top: var(--reflection-top, 0px); width: var(--reflection-width, 100%); height: var(--reflection-height, auto); transform: scaleY(-1); opacity: .65; }
 .figure-scene { position: absolute; left: 50%; bottom: calc(100% - var(--water)); height: calc(var(--water) - 8px); width: auto; aspect-ratio: 1672 / 941; transform: translateX(-50%) translateY(calc(3.5% + 24px)); }
 .mascot { display: block; width: 100%; height: 100%; object-fit: fill; position: relative; z-index: 1; transform-origin: center bottom; animation: breathe 7s ease-in-out infinite; }
 .hero-kanji { position: absolute; top: -4%; left: 50%; height: 64%; width: auto; aspect-ratio: 800 / 760; transform: translateX(-50%); object-fit: contain; pointer-events: none; }
