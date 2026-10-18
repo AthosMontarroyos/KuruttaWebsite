@@ -39,6 +39,9 @@ void main(){
  float e=.015;
  float h=sea(world);
  vec2 slope=vec2(sea(world+vec2(e,0))-h,sea(world+vec2(0,e))-h)/e;
+ // Stronger relief near the waterline, tapering into the existing foreground.
+ float upperWave=1.-smoothstep(.05,.4,depth);
+ slope*=1.+upperWave*.65;
  vec3 normal=normalize(vec3(-slope.x*.8,1.,-slope.y*.8));
  vec3 view=normalize(vec3(-(uv.x-.5)*aspect*.12,.15+depth*.55,1.));
  float fresnel=pow(1.-max(dot(normal,view),0.),3.);
@@ -49,8 +52,9 @@ void main(){
  float seaLight=.012+sky*.075+fresnel*.035+crest*.08;
  seaLight*=mix(.86,1.06,noise(world*13.));
  seaLight*=mix(.9,1.,smoothstep(0.,.15,depth));
- // Suppress distant specular bands; retain the foreground wave lighting.
- seaLight=mix(.014,seaLight,smoothstep(.06,.38,depth));
+ // Reveal the upper waves sooner instead of flattening them into a dark band.
+ seaLight=mix(.014,seaLight,mix(.45,1.,smoothstep(.01,.22,depth)));
+ seaLight*=1.+upperWave*.3;
  vec2 displacement=(slope*.35+vec2(noise(world+time*.15)-.5,noise(world*.7-time*.1)-.5))*tuning.y*(.05+depth*2.);
  for(int i=0;i<8;i++) {
    vec2 delta=vec2((uv.x-ripples[i].x)*aspect,depth-ripples[i].y);
