@@ -63,6 +63,14 @@ export default function App() {
           <div className="figure-scene">
             <img className="hero-kanji" src={kanji} alt="" aria-hidden="true" />
             <div className="mascot-clip"><img className="mascot" src={mascot} alt="Personagem de cabelos escuros, sentada, com uma espada apoiada no ombro." fetchPriority="high" /></div>
+            <div className="butterfly-orbit pointer-events-none absolute" aria-hidden="true">
+              {[0, 1, 2, 3, 4].map(i => <span key={i} className="butterfly-trail absolute rounded-full bg-white" style={{ animationDelay: `${-18 + (i + 1) * .12}s`, opacity: .18 - i * .03 }} />)}
+              <div className="butterfly-flight absolute">
+                <div className="butterfly-heading">
+                  <img className="butterfly-wing" src="/assets/generated/butterfly-cutout-v1.png" alt="" />
+                </div>
+              </div>
+            </div>
           </div>
           <Ocean />
         </div>

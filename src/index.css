@@ -66,6 +66,17 @@ h2 { font-size: clamp(30px, 4vw, 46px); font-weight: 450; letter-spacing: -.035e
 .mascot-clip { position: absolute; inset: 0; clip-path: inset(-10% -10% calc(3.5% + 18px)); mask-image: linear-gradient(black calc(96.5% - 48px), transparent calc(96.5% - 18px)); }
 .mascot, .ocean-fallback img { filter: grayscale(1); }
 .mascot { animation-duration: 6s; }
+.butterfly-orbit { left: 30%; top: 50%; width: 40%; height: 28%; z-index: 2; }
+.butterfly-flight, .butterfly-trail { offset-path: ellipse(48% 42% at 50% 50%); offset-rotate: 0deg; animation: butterfly-orbit 18s linear infinite; animation-delay: -18s; }
+.butterfly-flight { width: clamp(26px, 3.2vw, 42px); }
+.butterfly-flight::before { content: ''; position: absolute; inset: -65%; border-radius: 50%; background: radial-gradient(ellipse, #ffffff24, #ffffff09 35%, transparent 70%); }
+.butterfly-heading { animation: butterfly-heading 18s linear infinite; }
+.butterfly-wing { display: block; width: 100%; height: auto; filter: grayscale(1) drop-shadow(0 0 4px #ffffff80); transform-origin: 32% 74%; animation: butterfly-flutter .48s ease-in-out infinite alternate; }
+.butterfly-trail { width: 3px; height: 3px; filter: blur(1px); }
+@keyframes butterfly-orbit { from { offset-distance: 100%; } to { offset-distance: 0%; } }
+@keyframes butterfly-heading { 0%,100% { transform: scaleX(1) rotate(-12deg); } 45% { transform: scaleX(1) rotate(8deg); } 50%,95% { transform: scaleX(-1) rotate(-8deg); } }
+@keyframes butterfly-flutter { from { transform: perspective(150px) rotateY(-12deg) rotate(-3deg); } to { transform: perspective(150px) rotateY(58deg) rotate(3deg); } }
+@media (prefers-reduced-motion: reduce) { .butterfly-flight { offset-distance: 12%; } .butterfly-trail { display: none; } }
 .hero-kanji { translate: 0 var(--rise); opacity: var(--kanji-opacity); }
 .scroll-cue { opacity: var(--kanji-opacity); }
 .hero[data-paused="true"] * { animation-play-state: paused; }
