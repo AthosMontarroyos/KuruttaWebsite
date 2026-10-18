@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import mascot from '../assets/brand/hero-figure-v1.webp'
 
-export const WATER = { speed: .55, amplitude: .018, reflection: .78, fade: .9, resolution: 1, maxDpr: 1.5 }
+const WATER = { speed: .55, amplitude: .018, reflection: .78, fade: .9, resolution: 1, maxDpr: 1.5 }
 
 const vertex = `attribute vec2 position;
 varying vec2 uv;
@@ -48,7 +48,6 @@ void main(){
  float crest=pow(max(0.,dot(normal,normalize(vec3(-.2,1.,.8)))),18.);
  float seaLight=.012+sky*.075+fresnel*.035+crest*.08;
  seaLight*=mix(.86,1.06,noise(world*13.));
- float distant=1.-smoothstep(.08,.42,depth);
  seaLight*=mix(.9,1.,smoothstep(0.,.15,depth));
  // Suppress distant specular bands; retain the foreground wave lighting.
  seaLight=mix(.014,seaLight,smoothstep(.06,.38,depth));
@@ -73,16 +72,15 @@ void main(){
  wake*=smoothstep(.08,.25,depth)*exp(-local.y*13.)*smoothstep(.1,.3,radius)*(1.-smoothstep(.8,1.25,radius));
  float shadow=exp(-pow(local.x*3.2,2.)-local.y*30.);
  vec3 color=vec3(seaLight*(1.-shadow*.8)+wake*.065);
- vec3 refl=reflection.rgb;
+ vec3 refl=vec3(dot(reflection.rgb,vec3(.2126,.7152,.0722)));
  float peak=max(refl.r,max(refl.g,refl.b));
  refl=mix(vec3(.12),refl,smoothstep(0.,.35,peak));
  color+=refl*reflection.a*inside*fade;
- float boundary=2.+sin(uv.x*44.+time*.8)*1.2+sin(uv.x*83.-time)*.6;
  float alpha=smoothstep(0.,18.,depth*resolution.y);
  gl_FragColor=vec4(color,alpha);
 }`
 
-type Renderer = { draw: (time: number, ripples?: Float32Array) => void; dispose: () => void }
+type Renderer = { draw: (time: number, ripples?: Float32Array, scale?: number) => void; dispose: () => void }
 
 function webglRenderer(canvas: HTMLCanvasElement, image: HTMLImageElement): Renderer | null {
   const gl = canvas.getContext('webgl', { alpha: true, antialias: false, powerPreference: 'low-power' })
@@ -126,10 +124,10 @@ function webglRenderer(canvas: HTMLCanvasElement, image: HTMLImageElement): Rend
   const waves = gl.getUniformLocation(program, 'ripples[0]')
   gl.uniform4f(gl.getUniformLocation(program, 'tuning'), WATER.speed, WATER.amplitude, WATER.reflection, WATER.fade)
   return {
-    draw: (time, ripples = new Float32Array(32)) => {
+    draw: (time, ripples = new Float32Array(32), scale = WATER.resolution) => {
       gl.uniform4fv(waves, ripples)
       const w = canvas.clientWidth, h = canvas.clientHeight
-      const ratio = Math.min(devicePixelRatio, WATER.maxDpr) * WATER.resolution
+      const ratio = Math.min(devicePixelRatio, WATER.maxDpr) * scale
       if (canvas.width !== Math.round(w*ratio) || canvas.height !== Math.round(h*ratio)) {
         canvas.width = Math.round(w*ratio); canvas.height = Math.round(h*ratio)
       }
@@ -157,6 +155,7 @@ export default function Ocean() {
     let renderer: Renderer | null = null, frame = 0, visible = true, activeTime = 0, previous = 0, disposed = false
     const waves = new Float32Array(32)
     const births = new Float64Array(8).fill(-10000)
+    let scale = WATER.resolution, samples = 0, elapsed = 0
     let next = 0, lastMove = -1000
     const ripple = (event: PointerEvent) => {
       if (motion.matches || document.hidden) return
@@ -175,10 +174,17 @@ export default function Ocean() {
     const tick = (now: number) => {
       if (disposed) return
       if (visible && !document.hidden) {
+        if (previous && activeTime>1500 && scale===1) {
+          elapsed+=Math.min(now-previous,100); samples++
+          if (samples===120) {
+            if (elapsed/samples>20) { scale=.5; canvas.dataset.quality='half' }
+            samples=0; elapsed=0
+          }
+        }
         activeTime += previous ? Math.min(now-previous, 100) : 0
         previous=now
         for (let i=0;i<8;i++) waves[i*4+2]=(activeTime-births[i])/1000
-        renderer?.draw(activeTime, waves)
+        renderer?.draw(activeTime, waves, scale)
       }
       frame=requestAnimationFrame(tick)
     }
@@ -193,18 +199,19 @@ export default function Ocean() {
         fallback.style.setProperty('--reflection-width', `${box.width}px`)
         fallback.style.setProperty('--reflection-height', `${box.height}px`)
       }
-      renderer?.draw(motion.matches ? 0 : activeTime)
-      if (!motion.matches && visible && !document.hidden) frame=requestAnimationFrame(tick)
+      if (motion.matches) { waves.fill(0); births.fill(-10000) }
+      renderer?.draw(motion.matches ? 0 : activeTime, waves, scale)
+      if (renderer && !motion.matches && visible && !document.hidden) frame=requestAnimationFrame(tick)
     }
     const init = () => {
       if (disposed || !canvas) return
       renderer?.dispose()
       renderer=useFallback ? null : webglRenderer(canvas,image)
-      if (!renderer) { setUseFallback(true); return }
+      if (!renderer) { setUseFallback(true); start(); return }
       canvas.dataset.renderer=useFallback ? 'fallback' : 'webgl'
       start()
     }
-    const lost = (event: Event) => { event.preventDefault(); cancelAnimationFrame(frame) }
+    const lost = (event: Event) => { event.preventDefault(); cancelAnimationFrame(frame); setUseFallback(true) }
     canvas.addEventListener('webglcontextlost',lost)
     canvas.addEventListener('webglcontextrestored',init)
     image.onload=init;image.src=mascot

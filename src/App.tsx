@@ -12,6 +12,7 @@ function Github() {
 
 export default function App() {
   const hero = useRef<HTMLElement>(null)
+  const header = useRef<HTMLElement>(null)
   useEffect(() => {
     const element = hero.current!
     const motion = matchMedia('(prefers-reduced-motion: reduce)')
@@ -22,8 +23,9 @@ export default function App() {
     }
     const leave = () => { tx=0; ty=0 }
     const scroll = () => {
+      header.current?.classList.toggle('is-scrolled',window.scrollY>8)
       const box=element.getBoundingClientRect()
-      const progress=motion.matches ? 0 : Math.max(0,Math.min(1,(76-box.top)/(box.height*.65)))
+      const progress=motion.matches ? 0 : Math.max(0,Math.min(1,((header.current?.offsetHeight || 76)-box.top)/(box.height*.65)))
       element.style.setProperty('--sink',`${progress*220}px`)
       element.style.setProperty('--rise',`${-progress*100}px`)
       element.style.setProperty('--kanji-opacity',String(1-progress))
@@ -50,7 +52,7 @@ export default function App() {
   }, [])
   return <>
     <a className="skip-link" href="#sobre">Ir para o conteúdo</a>
-    <header className="header">
+    <header ref={header} className="header sticky top-0 z-20 transition-[background-color,backdrop-filter] duration-300">
       <a className="brand" href="#inicio" aria-label="Kurutta, início"><img src={kanji} alt="" /><span>Kurutta</span></a>
       <nav aria-label="Navegação principal">
         <a href="#sobre">Sobre</a><a href="#projetos">Projetos</a><a href="#contato">Contato</a>
@@ -66,6 +68,8 @@ export default function App() {
           </div>
           <Ocean />
         </div>
+        <svg className="hero-grain pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true"><filter id="hero-grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="3" stitchTiles="stitch" /><feColorMatrix type="saturate" values="0" /></filter><rect width="100%" height="100%" filter="url(#hero-grain)" /></svg>
+        <div className="hero-vignette pointer-events-none absolute inset-0" aria-hidden="true" />
         <a className="scroll-cue" href="#sobre" aria-label="Rolar para conhecer o Kurutta"><Arrow down /></a>
       </section>
       <section id="sobre" className="about section">
