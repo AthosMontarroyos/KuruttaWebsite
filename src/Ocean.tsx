@@ -33,22 +33,22 @@ float sea(vec2 p){
 void main(){
  float depth=1.-uv.y;
  float aspect=resolution.x/resolution.y;
- float upperWave=1.-smoothstep(.05,.4,depth);
+ // Keep the extra detail within the backmost 36 CSS pixels of water.
+ float upperWave=1.-smoothstep(10.,36.,depth*resolution.y);
  // A low camera looking down onto a receding horizontal plane.
- // Limit perspective compression at the top so the swells retain visible width.
- float distance=2.4/(depth+.11+upperWave*.16);
+ float distance=2.4/(depth+.11);
  vec2 world=vec2((uv.x-.5)*aspect*distance*.58,distance);
  float e=.015;
  float h=sea(world);
  vec2 slope=vec2(sea(world+vec2(e,0))-h,sea(world+vec2(0,e))-h)/e;
  // Stronger relief near the waterline, tapering into the existing foreground.
- slope*=1.+upperWave*.65;
+ slope*=1.+upperWave*.25;
  // Crossing broad swells break up the previously continuous mirrored surface.
  vec2 swellPhase=vec2(world.y*.65+world.x*.32-time*.7,
    world.y*.9-world.x*.48+time*.45);
  vec2 swellSlope=vec2(.32*cos(swellPhase.x)-.48*cos(swellPhase.y),
    .65*cos(swellPhase.x)+.9*cos(swellPhase.y));
- slope+=swellSlope*upperWave*.55;
+ slope+=swellSlope*upperWave*.18;
  vec3 normal=normalize(vec3(-slope.x*.8,1.,-slope.y*.8));
  vec3 view=normalize(vec3(-(uv.x-.5)*aspect*.12,.15+depth*.55,1.));
  float fresnel=pow(1.-max(dot(normal,view),0.),3.);
@@ -60,10 +60,9 @@ void main(){
  seaLight*=mix(.86,1.06,noise(world*13.));
  seaLight*=mix(.9,1.,smoothstep(0.,.15,depth));
  // Reveal the upper waves sooner instead of flattening them into a dark band.
- seaLight=mix(.014,seaLight,mix(.45,1.,smoothstep(.01,.22,depth)));
- seaLight*=1.+upperWave*.3;
+ seaLight=mix(.014,seaLight,max(smoothstep(.06,.38,depth),upperWave*.75));
  vec2 displacement=(slope*.35+vec2(noise(world+time*.15)-.5,noise(world*.7-time*.1)-.5))*tuning.y*(.05+depth*2.);
- displacement+=swellSlope*vec2(.014,.024)*upperWave*smoothstep(0.,.06,depth);
+ displacement+=swellSlope*vec2(.003,.005)*upperWave*smoothstep(0.,8.,depth*resolution.y);
  for(int i=0;i<8;i++) {
    vec2 delta=vec2((uv.x-ripples[i].x)*aspect,depth-ripples[i].y);
    float age=ripples[i].z;
@@ -87,7 +86,7 @@ void main(){
  vec3 refl=vec3(dot(reflection.rgb,vec3(.2126,.7152,.0722)));
  float peak=max(refl.r,max(refl.g,refl.b));
  refl=mix(vec3(.12),refl,smoothstep(0.,.35,peak));
- float waveVisibility=1.-upperWave*.28*(.5+.5*sin(swellPhase.x));
+ float waveVisibility=1.-upperWave*.08*(.5+.5*sin(swellPhase.x));
  color+=refl*reflection.a*inside*fade*waveVisibility;
  float waterEdge=3.+sin(swellPhase.x)*2.+sin(swellPhase.y)*1.5;
  float alpha=smoothstep(waterEdge,waterEdge+18.,depth*resolution.y);
