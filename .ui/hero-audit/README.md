@@ -1,5 +1,7 @@
 # Revisão incremental do hero
 
+Feedback mais recente: removido também o parallax da mascote, incluindo listeners do cursor e o loop de interpolação. O mouse agora interage apenas com a água; a respiração permanece independente dele.
+
 Atualização após feedback: removidos o afundamento da mascote no scroll e o parallax do kanji com o mouse. A mascote mantém respiração/parallax leve; o kanji mantém apenas subida/fade no scroll. Os patches A–D abaixo registram a entrega original; seus valores de afundamento e parallax do kanji foram desativados nesta revisão.
 
 Preservados React, Vite, Tailwind, arquivos, nomes e artes originais. Não há nova dependência.

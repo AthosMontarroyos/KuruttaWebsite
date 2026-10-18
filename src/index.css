@@ -54,10 +54,10 @@ h2 { font-size: clamp(30px, 4vw, 46px); font-weight: 450; letter-spacing: -.035e
 .footer { border-top: 1px solid #292929; display: flex; justify-content: space-between; gap: 40px; align-items: flex-end; }
 .footer div > a { display: inline-flex; align-items: center; gap: 14px; margin-top: 28px; color: #bbb; }
 .back-top { font-size: 13px; color: #aaa; }
-.hero { --mx: 0px; --my: 0px; --rise: 0px; --kanji-opacity: 1; }
+.hero { --rise: 0px; --kanji-opacity: 1; }
 .mascot-clip { position: absolute; inset: 0; clip-path: inset(-10% -10% calc(3.5% + 18px)); mask-image: linear-gradient(black calc(96.5% - 48px), transparent calc(96.5% - 18px)); }
 .mascot, .ocean-fallback img { filter: grayscale(1); }
-.mascot { translate: calc(var(--mx) * 2.5) calc(var(--my) * 2.5); animation-duration: 6s; }
+.mascot { animation-duration: 6s; }
 .hero-kanji { translate: 0 var(--rise); opacity: var(--kanji-opacity); }
 .scroll-cue { opacity: var(--kanji-opacity); }
 .hero[data-paused="true"] * { animation-play-state: paused; }
