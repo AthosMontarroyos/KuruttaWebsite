@@ -48,12 +48,14 @@ h2 { font-size: clamp(30px, 4vw, 46px); font-weight: 450; letter-spacing: -.035e
 .footer { border-top: 1px solid #292929; display: flex; justify-content: space-between; gap: 40px; align-items: flex-end; }
 .footer div > a { display: inline-flex; align-items: center; gap: 14px; margin-top: 28px; color: #bbb; }
 .back-top { font-size: 13px; color: #aaa; }
-.hero { --mx: 0px; --my: 0px; }
-.mascot { translate: calc(var(--mx) * 2.5) calc(var(--my) * 2.5); animation-duration: 6s; }
-.hero-kanji { translate: calc(var(--mx) * -8) calc(var(--my) * -8); }
+.hero { --mx: 0px; --my: 0px; --sink: 0px; --rise: 0px; --kanji-opacity: 1; }
+.mascot-clip { position: absolute; inset: 0; clip-path: inset(-10% -10% calc(3.5% + 36px)); }
+.mascot { translate: calc(var(--mx) * 2.5) calc(var(--my) * 2.5 + var(--sink)); animation-duration: 6s; }
+.hero-kanji { translate: calc(var(--mx) * -8) calc(var(--my) * -8 + var(--rise)); opacity: var(--kanji-opacity); }
+.scroll-cue { opacity: var(--kanji-opacity); }
 .hero[data-paused="true"] * { animation-play-state: paused; }
 @keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.008); } }
-@keyframes scroll-hint { 0%,100% { transform: rotate(90deg) translateX(0); } 50% { transform: rotate(90deg) translateX(6px); } }
+@keyframes scroll-hint { 0%,100% { opacity: .45; transform: rotate(90deg) translateX(0); } 50% { opacity: .8; transform: rotate(90deg) translateX(3px); } }
 @media (min-aspect-ratio: 18/9) { .stage { --water: 72%; } }
 @media (max-width: 640px) {
  .header { height: 68px; padding: 0 20px; }
