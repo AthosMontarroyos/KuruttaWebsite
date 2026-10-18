@@ -3,6 +3,17 @@ import { useEffect, useRef } from 'react'
 import mascot from '../assets/brand/hero-figure-v1.webp'
 import kanji from '../assets/brand/kanji-v1.svg'
 
+// Deterministic placement keeps the field stable across renders.
+const floatingDots = Array.from({ length: 36 }, (_, i) => ({
+  left: `${(i * 61.803 + 7) % 100}%`,
+  top: `${(i * 37.719 + 11) % 100}%`,
+  width: `${1.5 + (i % 4) * .7}px`,
+  height: `${1.5 + (i % 4) * .7}px`,
+  opacity: .2 + (i % 5) * .09,
+  animationDuration: `${12 + (i % 7) * 2}s`,
+  animationDelay: `${-i * 1.73}s`,
+}))
+
 function Arrow({ down = false }: { down?: boolean }) {
   return <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" aria-hidden="true" className={down ? 'arrow-down' : ''}><path d="M5 12h14M13 6l6 6-6 6" /></svg>
 }
@@ -46,6 +57,9 @@ export default function App() {
     <main>
       <section ref={hero} id="inicio" className="hero" aria-label="Kurutta: apresentação visual">
         <div className="stage">
+          <div className="floating-dots pointer-events-none absolute inset-x-0 top-0 overflow-hidden" aria-hidden="true">
+            {floatingDots.map((style, i) => <span key={i} className="floating-dot absolute rounded-full bg-white" style={style} />)}
+          </div>
           <div className="figure-scene">
             <img className="hero-kanji" src={kanji} alt="" aria-hidden="true" />
             <div className="mascot-clip"><img className="mascot" src={mascot} alt="Personagem de cabelos escuros, sentada, com uma espada apoiada no ombro." fetchPriority="high" /></div>

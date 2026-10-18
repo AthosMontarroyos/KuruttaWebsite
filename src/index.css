@@ -55,6 +55,14 @@ h2 { font-size: clamp(30px, 4vw, 46px); font-weight: 450; letter-spacing: -.035e
 .footer div > a { display: inline-flex; align-items: center; gap: 14px; margin-top: 28px; color: #bbb; }
 .back-top { font-size: 13px; color: #aaa; }
 .hero { --rise: 0px; --kanji-opacity: 1; }
+.floating-dots { height: var(--water); mask-image: linear-gradient(transparent, black 12%, black 78%, transparent); }
+.floating-dot { animation: float-dot 16s ease-in-out infinite alternate; }
+.floating-dot:nth-child(3n) { animation-direction: alternate-reverse; }
+@keyframes float-dot {
+  0% { transform: translate3d(-9px, 12px, 0); }
+  50% { transform: translate3d(6px, -8px, 0); }
+  100% { transform: translate3d(-3px, -28px, 0); }
+}
 .mascot-clip { position: absolute; inset: 0; clip-path: inset(-10% -10% calc(3.5% + 18px)); mask-image: linear-gradient(black calc(96.5% - 48px), transparent calc(96.5% - 18px)); }
 .mascot, .ocean-fallback img { filter: grayscale(1); }
 .mascot { animation-duration: 6s; }
