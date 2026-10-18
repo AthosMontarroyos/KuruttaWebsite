@@ -14,6 +14,7 @@ uniform vec2 figure;
 uniform float contact;
 uniform float center;
 uniform vec4 tuning;
+uniform vec4 ripples[8];
 uniform sampler2D subject;
 float hash(vec2 p){return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453);}
 float noise(vec2 p){vec2 i=floor(p),f=fract(p);f=f*f*(3.-2.*f);return mix(mix(hash(i),hash(i+vec2(1,0)),f.x),mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x),f.y);}
@@ -52,6 +53,14 @@ void main(){
  // Suppress distant specular bands; retain the foreground wave lighting.
  seaLight=mix(.014,seaLight,smoothstep(.06,.38,depth));
  vec2 displacement=(slope*.35+vec2(noise(world+time*.15)-.5,noise(world*.7-time*.1)-.5))*tuning.y*(.05+depth*2.);
+ for(int i=0;i<8;i++) {
+   vec2 delta=vec2((uv.x-ripples[i].x)*aspect,depth-ripples[i].y);
+   float age=ripples[i].z;
+   float radius=length(delta);
+   float wave=sin((radius-age*.22)*65.)*exp(-pow((radius-age*.22)*12.,2.))*exp(-age*1.5)*ripples[i].w;
+   displacement+=normalize(delta+vec2(.0001))*wave*.012;
+   seaLight+=wave*.025;
+ }
  vec2 tex=vec2((uv.x-center)*resolution.x/figure.x+.5,
    contact-depth*resolution.y/figure.y)+displacement;
  vec4 reflection=texture2D(subject,clamp(tex,0.,1.));
@@ -73,7 +82,7 @@ void main(){
  gl_FragColor=vec4(color,alpha);
 }`
 
-type Renderer = { draw: (time: number) => void; dispose: () => void }
+type Renderer = { draw: (time: number, ripples?: Float32Array) => void; dispose: () => void }
 
 function webglRenderer(canvas: HTMLCanvasElement, image: HTMLImageElement): Renderer | null {
   const gl = canvas.getContext('webgl', { alpha: true, antialias: false, powerPreference: 'low-power' })
@@ -114,9 +123,11 @@ function webglRenderer(canvas: HTMLCanvasElement, image: HTMLImageElement): Rend
   const figure = gl.getUniformLocation(program, 'figure')
   const contact = gl.getUniformLocation(program, 'contact')
   const center = gl.getUniformLocation(program, 'center')
+  const waves = gl.getUniformLocation(program, 'ripples[0]')
   gl.uniform4f(gl.getUniformLocation(program, 'tuning'), WATER.speed, WATER.amplitude, WATER.reflection, WATER.fade)
   return {
-    draw: time => {
+    draw: (time, ripples = new Float32Array(32)) => {
+      gl.uniform4fv(waves, ripples)
       const w = canvas.clientWidth, h = canvas.clientHeight
       const ratio = Math.min(devicePixelRatio, WATER.maxDpr) * WATER.resolution
       if (canvas.width !== Math.round(w*ratio) || canvas.height !== Math.round(h*ratio)) {
@@ -144,12 +155,30 @@ export default function Ocean() {
     const image = new Image()
     const motion = matchMedia('(prefers-reduced-motion: reduce)')
     let renderer: Renderer | null = null, frame = 0, visible = true, activeTime = 0, previous = 0, disposed = false
+    const waves = new Float32Array(32)
+    const births = new Float64Array(8).fill(-10000)
+    let next = 0, lastMove = -1000
+    const ripple = (event: PointerEvent) => {
+      if (motion.matches || document.hidden) return
+      const box = canvas.getBoundingClientRect()
+      if (event.clientY < box.top || event.clientY > box.bottom) return
+      const click = event.type === 'pointerdown'
+      if (!click && activeTime-lastMove < 100) return
+      lastMove=activeTime
+      waves[next*4]=(event.clientX-box.left)/box.width
+      waves[next*4+1]=(event.clientY-box.top)/box.height
+      waves[next*4+3]=click ? 1 : .35
+      births[next]=activeTime; next=(next+1)%8
+    }
+    canvas.parentElement?.addEventListener('pointermove', ripple)
+    canvas.parentElement?.addEventListener('pointerdown', ripple)
     const tick = (now: number) => {
       if (disposed) return
       if (visible && !document.hidden) {
         activeTime += previous ? Math.min(now-previous, 100) : 0
         previous=now
-        renderer?.draw(activeTime)
+        for (let i=0;i<8;i++) waves[i*4+2]=(activeTime-births[i])/1000
+        renderer?.draw(activeTime, waves)
       }
       frame=requestAnimationFrame(tick)
     }
@@ -190,6 +219,8 @@ export default function Ocean() {
       motion.removeEventListener('change',start);document.removeEventListener('visibilitychange',start)
       canvas?.removeEventListener('webglcontextlost',lost);canvas?.removeEventListener('webglcontextrestored',init)
       image.onload=null
+      canvas.parentElement?.removeEventListener('pointermove', ripple)
+      canvas.parentElement?.removeEventListener('pointerdown', ripple)
     }
   }, [useFallback])
   return <><div className={`ocean-fallback ${useFallback ? '' : 'hidden'}`} aria-hidden="true"><img src={mascot} alt="" /></div><canvas ref={ref} className="ocean" aria-hidden="true" /></>

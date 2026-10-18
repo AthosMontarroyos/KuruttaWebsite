@@ -1,4 +1,5 @@
 import Ocean from './Ocean'
+import { useEffect, useRef } from 'react'
 import mascot from '../assets/brand/hero-figure-v1.webp'
 import kanji from '../assets/brand/kanji-v1.svg'
 
@@ -10,6 +11,34 @@ function Github() {
 }
 
 export default function App() {
+  const hero = useRef<HTMLElement>(null)
+  useEffect(() => {
+    const element = hero.current!
+    const motion = matchMedia('(prefers-reduced-motion: reduce)')
+    let x=0, y=0, tx=0, ty=0, frame=0, previous=0, visible=true
+    const move = (e: PointerEvent) => {
+      const box=element.getBoundingClientRect()
+      tx=(e.clientX-box.left)/box.width*2-1; ty=(e.clientY-box.top)/box.height*2-1
+    }
+    const leave = () => { tx=0; ty=0 }
+    const tick = (now: number) => {
+      const ease=1-Math.exp(-Math.min(now-previous || 16,64)/110); previous=now
+      x+=(tx-x)*ease; y+=(ty-y)*ease
+      element.style.setProperty('--mx', `${x}px`); element.style.setProperty('--my', `${y}px`)
+      frame=requestAnimationFrame(tick)
+    }
+    const start = () => {
+      cancelAnimationFrame(frame); previous=0
+      element.dataset.paused=String(document.hidden || !visible)
+      if (motion.matches) { x=0; y=0; element.style.setProperty('--mx','0px'); element.style.setProperty('--my','0px') }
+      else if (!document.hidden && visible) frame=requestAnimationFrame(tick)
+    }
+    const observer=new IntersectionObserver(([entry])=>{visible=entry.isIntersecting;start()})
+    observer.observe(element)
+    element.addEventListener('pointermove',move); element.addEventListener('pointerleave',leave)
+    document.addEventListener('visibilitychange',start); motion.addEventListener('change',start); start()
+    return () => { cancelAnimationFrame(frame); observer.disconnect(); element.removeEventListener('pointermove',move); element.removeEventListener('pointerleave',leave); document.removeEventListener('visibilitychange',start); motion.removeEventListener('change',start) }
+  }, [])
   return <>
     <a className="skip-link" href="#sobre">Ir para o conteúdo</a>
     <header className="header">
@@ -20,7 +49,7 @@ export default function App() {
       </nav>
     </header>
     <main>
-      <section id="inicio" className="hero" aria-label="Kurutta: apresentação visual">
+      <section ref={hero} id="inicio" className="hero" aria-label="Kurutta: apresentação visual">
         <div className="stage">
           <div className="figure-scene">
             <img className="hero-kanji" src={kanji} alt="" aria-hidden="true" />

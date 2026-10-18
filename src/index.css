@@ -48,7 +48,11 @@ h2 { font-size: clamp(30px, 4vw, 46px); font-weight: 450; letter-spacing: -.035e
 .footer { border-top: 1px solid #292929; display: flex; justify-content: space-between; gap: 40px; align-items: flex-end; }
 .footer div > a { display: inline-flex; align-items: center; gap: 14px; margin-top: 28px; color: #bbb; }
 .back-top { font-size: 13px; color: #aaa; }
-@keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.003); } }
+.hero { --mx: 0px; --my: 0px; }
+.mascot { translate: calc(var(--mx) * 2.5) calc(var(--my) * 2.5); animation-duration: 6s; }
+.hero-kanji { translate: calc(var(--mx) * -8) calc(var(--my) * -8); }
+.hero[data-paused="true"] * { animation-play-state: paused; }
+@keyframes breathe { 0%,100% { transform: scale(1); } 50% { transform: scale(1.008); } }
 @keyframes scroll-hint { 0%,100% { transform: rotate(90deg) translateX(0); } 50% { transform: rotate(90deg) translateX(6px); } }
 @media (min-aspect-ratio: 18/9) { .stage { --water: 72%; } }
 @media (max-width: 640px) {
