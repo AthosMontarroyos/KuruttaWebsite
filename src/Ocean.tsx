@@ -33,15 +33,22 @@ float sea(vec2 p){
 void main(){
  float depth=1.-uv.y;
  float aspect=resolution.x/resolution.y;
+ float upperWave=1.-smoothstep(.05,.4,depth);
  // A low camera looking down onto a receding horizontal plane.
- float distance=2.4/(depth+.11);
+ // Limit perspective compression at the top so the swells retain visible width.
+ float distance=2.4/(depth+.11+upperWave*.16);
  vec2 world=vec2((uv.x-.5)*aspect*distance*.58,distance);
  float e=.015;
  float h=sea(world);
  vec2 slope=vec2(sea(world+vec2(e,0))-h,sea(world+vec2(0,e))-h)/e;
  // Stronger relief near the waterline, tapering into the existing foreground.
- float upperWave=1.-smoothstep(.05,.4,depth);
  slope*=1.+upperWave*.65;
+ // Crossing broad swells break up the previously continuous mirrored surface.
+ vec2 swellPhase=vec2(world.y*.65+world.x*.32-time*.7,
+   world.y*.9-world.x*.48+time*.45);
+ vec2 swellSlope=vec2(.32*cos(swellPhase.x)-.48*cos(swellPhase.y),
+   .65*cos(swellPhase.x)+.9*cos(swellPhase.y));
+ slope+=swellSlope*upperWave*.55;
  vec3 normal=normalize(vec3(-slope.x*.8,1.,-slope.y*.8));
  vec3 view=normalize(vec3(-(uv.x-.5)*aspect*.12,.15+depth*.55,1.));
  float fresnel=pow(1.-max(dot(normal,view),0.),3.);
@@ -56,6 +63,7 @@ void main(){
  seaLight=mix(.014,seaLight,mix(.45,1.,smoothstep(.01,.22,depth)));
  seaLight*=1.+upperWave*.3;
  vec2 displacement=(slope*.35+vec2(noise(world+time*.15)-.5,noise(world*.7-time*.1)-.5))*tuning.y*(.05+depth*2.);
+ displacement+=swellSlope*vec2(.014,.024)*upperWave*smoothstep(0.,.06,depth);
  for(int i=0;i<8;i++) {
    vec2 delta=vec2((uv.x-ripples[i].x)*aspect,depth-ripples[i].y);
    float age=ripples[i].z;
@@ -79,8 +87,10 @@ void main(){
  vec3 refl=vec3(dot(reflection.rgb,vec3(.2126,.7152,.0722)));
  float peak=max(refl.r,max(refl.g,refl.b));
  refl=mix(vec3(.12),refl,smoothstep(0.,.35,peak));
- color+=refl*reflection.a*inside*fade;
- float alpha=smoothstep(0.,18.,depth*resolution.y);
+ float waveVisibility=1.-upperWave*.28*(.5+.5*sin(swellPhase.x));
+ color+=refl*reflection.a*inside*fade*waveVisibility;
+ float waterEdge=3.+sin(swellPhase.x)*2.+sin(swellPhase.y)*1.5;
+ float alpha=smoothstep(waterEdge,waterEdge+18.,depth*resolution.y);
  gl_FragColor=vec4(color,alpha);
 }`
 
