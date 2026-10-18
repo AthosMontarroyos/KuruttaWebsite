@@ -26,7 +26,6 @@ export default function App() {
       header.current?.classList.toggle('is-scrolled',window.scrollY>8)
       const box=element.getBoundingClientRect()
       const progress=motion.matches ? 0 : Math.max(0,Math.min(1,((header.current?.offsetHeight || 76)-box.top)/(box.height*.65)))
-      element.style.setProperty('--sink',`${progress*220}px`)
       element.style.setProperty('--rise',`${-progress*100}px`)
       element.style.setProperty('--kanji-opacity',String(1-progress))
     }
