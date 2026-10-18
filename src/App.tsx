@@ -4,7 +4,7 @@ import mascot from '../assets/brand/hero-figure-v1.webp'
 import kanji from '../assets/brand/kanji-v1.svg'
 
 // Deterministic placement keeps the field stable across renders.
-const floatingDots = Array.from({ length: 36 }, (_, i) => ({
+const floatingDots = Array.from({ length: 64 }, (_, i) => ({
   left: `${(i * 61.803 + 7) % 100}%`,
   top: `${(i * 37.719 + 11) % 100}%`,
   width: `${1.5 + (i % 4) * .7}px`,
