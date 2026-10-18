@@ -1,0 +1,189 @@
+diff --git a/src/App.tsx b/src/App.tsx
+index 6e3adda..17144af 100644
+--- a/src/App.tsx
++++ b/src/App.tsx
+@@ -12,6 +12,7 @@ function Github() {
+ 
+ export default function App() {
+   const hero = useRef<HTMLElement>(null)
++  const header = useRef<HTMLElement>(null)
+   useEffect(() => {
+     const element = hero.current!
+     const motion = matchMedia('(prefers-reduced-motion: reduce)')
+@@ -22,8 +23,9 @@ export default function App() {
+     }
+     const leave = () => { tx=0; ty=0 }
+     const scroll = () => {
++      header.current?.classList.toggle('is-scrolled',window.scrollY>8)
+       const box=element.getBoundingClientRect()
+-      const progress=motion.matches ? 0 : Math.max(0,Math.min(1,(76-box.top)/(box.height*.65)))
++      const progress=motion.matches ? 0 : Math.max(0,Math.min(1,((header.current?.offsetHeight || 76)-box.top)/(box.height*.65)))
+       element.style.setProperty('--sink',`${progress*220}px`)
+       element.style.setProperty('--rise',`${-progress*100}px`)
+       element.style.setProperty('--kanji-opacity',String(1-progress))
+@@ -50,7 +52,7 @@ export default function App() {
+   }, [])
+   return <>
+     <a className="skip-link" href="#sobre">Ir para o conteúdo</a>
+-    <header className="header">
++    <header ref={header} className="header sticky top-0 z-20 transition-[background-color,backdrop-filter] duration-300">
+       <a className="brand" href="#inicio" aria-label="Kurutta, início"><img src={kanji} alt="" /><span>Kurutta</span></a>
+       <nav aria-label="Navegação principal">
+         <a href="#sobre">Sobre</a><a href="#projetos">Projetos</a><a href="#contato">Contato</a>
+@@ -66,6 +68,8 @@ export default function App() {
+           </div>
+           <Ocean />
+         </div>
++        <svg className="hero-grain pointer-events-none absolute inset-0 h-full w-full" aria-hidden="true"><filter id="hero-grain"><feTurbulence type="fractalNoise" baseFrequency=".85" numOctaves="3" stitchTiles="stitch" /><feColorMatrix type="saturate" values="0" /></filter><rect width="100%" height="100%" filter="url(#hero-grain)" /></svg>
++        <div className="hero-vignette pointer-events-none absolute inset-0" aria-hidden="true" />
+         <a className="scroll-cue" href="#sobre" aria-label="Rolar para conhecer o Kurutta"><Arrow down /></a>
+       </section>
+       <section id="sobre" className="about section">
+diff --git a/src/Ocean.tsx b/src/Ocean.tsx
+index 144434a..29e950d 100644
+--- a/src/Ocean.tsx
++++ b/src/Ocean.tsx
+@@ -1,7 +1,7 @@
+ import { useEffect, useRef, useState } from 'react'
+ import mascot from '../assets/brand/hero-figure-v1.webp'
+ 
+-export const WATER = { speed: .55, amplitude: .018, reflection: .78, fade: .9, resolution: 1, maxDpr: 1.5 }
++const WATER = { speed: .55, amplitude: .018, reflection: .78, fade: .9, resolution: 1, maxDpr: 1.5 }
+ 
+ const vertex = `attribute vec2 position;
+ varying vec2 uv;
+@@ -48,7 +48,6 @@ void main(){
+  float crest=pow(max(0.,dot(normal,normalize(vec3(-.2,1.,.8)))),18.);
+  float seaLight=.012+sky*.075+fresnel*.035+crest*.08;
+  seaLight*=mix(.86,1.06,noise(world*13.));
+- float distant=1.-smoothstep(.08,.42,depth);
+  seaLight*=mix(.9,1.,smoothstep(0.,.15,depth));
+  // Suppress distant specular bands; retain the foreground wave lighting.
+  seaLight=mix(.014,seaLight,smoothstep(.06,.38,depth));
+@@ -73,16 +72,15 @@ void main(){
+  wake*=smoothstep(.08,.25,depth)*exp(-local.y*13.)*smoothstep(.1,.3,radius)*(1.-smoothstep(.8,1.25,radius));
+  float shadow=exp(-pow(local.x*3.2,2.)-local.y*30.);
+  vec3 color=vec3(seaLight*(1.-shadow*.8)+wake*.065);
+- vec3 refl=reflection.rgb;
++ vec3 refl=vec3(dot(reflection.rgb,vec3(.2126,.7152,.0722)));
+  float peak=max(refl.r,max(refl.g,refl.b));
+  refl=mix(vec3(.12),refl,smoothstep(0.,.35,peak));
+  color+=refl*reflection.a*inside*fade;
+- float boundary=2.+sin(uv.x*44.+time*.8)*1.2+sin(uv.x*83.-time)*.6;
+  float alpha=smoothstep(0.,18.,depth*resolution.y);
+  gl_FragColor=vec4(color,alpha);
+ }`
+ 
+-type Renderer = { draw: (time: number, ripples?: Float32Array) => void; dispose: () => void }
++type Renderer = { draw: (time: number, ripples?: Float32Array, scale?: number) => void; dispose: () => void }
+ 
+ function webglRenderer(canvas: HTMLCanvasElement, image: HTMLImageElement): Renderer | null {
+   const gl = canvas.getContext('webgl', { alpha: true, antialias: false, powerPreference: 'low-power' })
+@@ -126,10 +124,10 @@ function webglRenderer(canvas: HTMLCanvasElement, image: HTMLImageElement): Rend
+   const waves = gl.getUniformLocation(program, 'ripples[0]')
+   gl.uniform4f(gl.getUniformLocation(program, 'tuning'), WATER.speed, WATER.amplitude, WATER.reflection, WATER.fade)
+   return {
+-    draw: (time, ripples = new Float32Array(32)) => {
++    draw: (time, ripples = new Float32Array(32), scale = WATER.resolution) => {
+       gl.uniform4fv(waves, ripples)
+       const w = canvas.clientWidth, h = canvas.clientHeight
+-      const ratio = Math.min(devicePixelRatio, WATER.maxDpr) * WATER.resolution
++      const ratio = Math.min(devicePixelRatio, WATER.maxDpr) * scale
+       if (canvas.width !== Math.round(w*ratio) || canvas.height !== Math.round(h*ratio)) {
+         canvas.width = Math.round(w*ratio); canvas.height = Math.round(h*ratio)
+       }
+@@ -157,6 +155,7 @@ export default function Ocean() {
+     let renderer: Renderer | null = null, frame = 0, visible = true, activeTime = 0, previous = 0, disposed = false
+     const waves = new Float32Array(32)
+     const births = new Float64Array(8).fill(-10000)
++    let scale = WATER.resolution, samples = 0, elapsed = 0
+     let next = 0, lastMove = -1000
+     const ripple = (event: PointerEvent) => {
+       if (motion.matches || document.hidden) return
+@@ -175,10 +174,17 @@ export default function Ocean() {
+     const tick = (now: number) => {
+       if (disposed) return
+       if (visible && !document.hidden) {
++        if (previous && activeTime>1500 && scale===1) {
++          elapsed+=Math.min(now-previous,100); samples++
++          if (samples===120) {
++            if (elapsed/samples>20) { scale=.5; canvas.dataset.quality='half' }
++            samples=0; elapsed=0
++          }
++        }
+         activeTime += previous ? Math.min(now-previous, 100) : 0
+         previous=now
+         for (let i=0;i<8;i++) waves[i*4+2]=(activeTime-births[i])/1000
+-        renderer?.draw(activeTime, waves)
++        renderer?.draw(activeTime, waves, scale)
+       }
+       frame=requestAnimationFrame(tick)
+     }
+@@ -193,18 +199,19 @@ export default function Ocean() {
+         fallback.style.setProperty('--reflection-width', `${box.width}px`)
+         fallback.style.setProperty('--reflection-height', `${box.height}px`)
+       }
+-      renderer?.draw(motion.matches ? 0 : activeTime)
+-      if (!motion.matches && visible && !document.hidden) frame=requestAnimationFrame(tick)
++      if (motion.matches) { waves.fill(0); births.fill(-10000) }
++      renderer?.draw(motion.matches ? 0 : activeTime, waves, scale)
++      if (renderer && !motion.matches && visible && !document.hidden) frame=requestAnimationFrame(tick)
+     }
+     const init = () => {
+       if (disposed || !canvas) return
+       renderer?.dispose()
+       renderer=useFallback ? null : webglRenderer(canvas,image)
+-      if (!renderer) { setUseFallback(true); return }
++      if (!renderer) { setUseFallback(true); start(); return }
+       canvas.dataset.renderer=useFallback ? 'fallback' : 'webgl'
+       start()
+     }
+-    const lost = (event: Event) => { event.preventDefault(); cancelAnimationFrame(frame) }
++    const lost = (event: Event) => { event.preventDefault(); cancelAnimationFrame(frame); setUseFallback(true) }
+     canvas.addEventListener('webglcontextlost',lost)
+     canvas.addEventListener('webglcontextrestored',init)
+     image.onload=init;image.src=mascot
+diff --git a/src/index.css b/src/index.css
+index b4decca..c3ddc06 100644
+--- a/src/index.css
++++ b/src/index.css
+@@ -2,7 +2,7 @@
+ 
+ :root { font-family: Inter, "Helvetica Neue", Arial, sans-serif; color: #f5f5f5; background: #000; font-synthesis: none; -webkit-font-smoothing: antialiased; }
+ * { box-sizing: border-box; }
+-html { scroll-behavior: smooth; scroll-padding-top: 24px; }
++html { scroll-behavior: smooth; scroll-padding-top: 92px; }
+ body { margin: 0; min-width: 320px; }
+ a { color: inherit; text-decoration: none; }
+ button, a { -webkit-tap-highlight-color: transparent; }
+@@ -18,6 +18,12 @@ svg { width: 24px; height: 24px; flex-shrink: 0; }
+ nav { display: flex; align-items: center; gap: clamp(20px, 3vw, 46px); font-size: 14px; }
+ nav a { transition: color .2s; }
+ nav a:hover { color: #aaa; }
++.header.is-scrolled { @apply bg-black/70 backdrop-blur-md; }
++nav a:not(.github-link) { @apply relative; }
++nav a:not(.github-link)::after { content: ''; @apply absolute left-0 -bottom-1 h-px w-full origin-left scale-x-0 bg-current transition-transform duration-200; }
++nav a:hover::after, nav a:focus-visible::after { @apply scale-x-100; }
++.hero-grain { opacity: .035; }
++.hero-vignette { background: radial-gradient(ellipse at 50% 45%, transparent 38%, #0006 100%); }
+ .github-link { display: flex; }
+ .hero { height: calc(100svh - 76px); min-height: 580px; position: relative; overflow: hidden; isolation: isolate; background: #000; }
+ .stage { position: absolute; inset: 0; --water: 66%; }
+@@ -49,7 +55,8 @@ h2 { font-size: clamp(30px, 4vw, 46px); font-weight: 450; letter-spacing: -.035e
+ .footer div > a { display: inline-flex; align-items: center; gap: 14px; margin-top: 28px; color: #bbb; }
+ .back-top { font-size: 13px; color: #aaa; }
+ .hero { --mx: 0px; --my: 0px; --sink: 0px; --rise: 0px; --kanji-opacity: 1; }
+-.mascot-clip { position: absolute; inset: 0; clip-path: inset(-10% -10% calc(3.5% + 36px)); }
++.mascot-clip { position: absolute; inset: 0; clip-path: inset(-10% -10% calc(3.5% + 18px)); mask-image: linear-gradient(black calc(96.5% - 48px), transparent calc(96.5% - 18px)); }
++.mascot, .ocean-fallback img { filter: grayscale(1); }
+ .mascot { translate: calc(var(--mx) * 2.5) calc(var(--my) * 2.5 + var(--sink)); animation-duration: 6s; }
+ .hero-kanji { translate: calc(var(--mx) * -8) calc(var(--my) * -8 + var(--rise)); opacity: var(--kanji-opacity); }
+ .scroll-cue { opacity: var(--kanji-opacity); }
+@@ -68,6 +75,7 @@ h2 { font-size: clamp(30px, 4vw, 46px); font-weight: 450; letter-spacing: -.035e
+  .stage { --water: 65%; }
+  .figure-scene { width: 156vw; height: auto; transform: translateX(-50%) translateY(calc(3.5% + 16px)); }
+  .mascot { animation: none; }
++ .mascot-clip { clip-path: inset(-10% -10% calc(3.5% + 10px)); mask-image: linear-gradient(black calc(96.5% - 40px), transparent calc(96.5% - 10px)); }
+  .scroll-cue { bottom: 22px; }
+  .section { padding: 72px 24px; }
+  .about { grid-template-columns: 1fr; gap: 38px; }
